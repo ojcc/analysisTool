@@ -159,7 +159,17 @@ get_appearances_df_raw <- function(team_comps = c("league", "cup"), squad_table_
   return(appearances_df_raw)
 }
 
-plot_player_stats <- function(app_df){
+plot_player_stats <- function(team_name, season){
+  
+  team_name_file <- str_replace_all(team_name, " ", "_")
+  
+  app_df <- readRDS(
+    file = glue(sprintf("{here::here()}/data/appearances_df_%s_%s.RDS", team_name_file, season)))
+  
+  ggsave(filename = here::here(sprintf("results/player_minutes_%s_%s.png", team_name_file, season)),
+         height = 9, width = 12)
+  
+  
   n_players <- n_distinct(subset(app_df, status %in% c("Started", "On as sub", "on the bench"))$name) + 0.5
   season_mins <- max(app_df$match_num)*90
   ## dataframes for vertical + horizontal divider lines
@@ -220,7 +230,7 @@ plot_player_stats <- function(app_df){
           plot.caption = element_text(size = 12))
 }
 
-plot_minutes <- function(team_name, tm_team_id, season = 2018, team_comps = c("ENG1")){
+get_apps <- function(team_name, tm_team_id, season = 2018, team_comps = c("ENG1")){
   
   tm_team_name <- team_name
   tm_team_name_url <- str_replace_all(tolower(tm_team_name), " ", "-")
@@ -308,12 +318,6 @@ plot_minutes <- function(team_name, tm_team_id, season = 2018, team_comps = c("E
     arrange(name) %>%
     mutate(name = paste(url_decode(name)," ",position))
   
-  ## save
-  saveRDS(appearances_df_clean, 
-          file = glue(sprintf("{here::here()}/data/appearances_df_%s_%s.RDS", team_name_file, season)))
-  appearances_df_clean <- readRDS(
-    file = glue(sprintf("{here::here()}/data/appearances_df_%s_%s.RDS", team_name_file, season)))
-  
   appearances_df_clean <- group_by(appearances_df_clean, name) %>% 
     mutate(goal_bar = goal*30+start,      
            league_yellows = cumsum(yellow>0),
@@ -324,13 +328,9 @@ plot_minutes <- function(team_name, tm_team_id, season = 2018, team_comps = c("E
   
   appearances_df_clean <- mutate(appearances_df_clean, name = as_factor(name) %>% fct_relevel(unique(appearances_df_clean$name))) %>% arrange(name, date)
   
-  ## plot
-  p <- plot_player_stats(appearances_df_clean)
-  
-  ggsave(filename = here::here(sprintf("results/player_minutes_%s_%s.png", team_name_file, season)),
-         height = 9, width = 12)
-  
-  return(p)
+  ## save
+  saveRDS(appearances_df_clean, 
+          file = glue(sprintf("{here::here()}/data/appearances_df_%s_%s.RDS", team_name_file, season)))
 }
 
 plot_lineup <- function(team_name, team_colour){
