@@ -1,4 +1,4 @@
-get_appearances <- function(team_name, tm_team_id, season = 2018, team_comps = c("ENG1")){
+get_appearances <- function(team_name, tm_team_id, season = 2018){
   
   tm_team_name <- team_name
   tm_team_name_url <- str_replace_all(tolower(tm_team_name), " ", "-")
@@ -6,9 +6,18 @@ get_appearances <- function(team_name, tm_team_id, season = 2018, team_comps = c
   
   positions <- c("AM", "CB", "CF", "CM", "DM", "GK", "LB", "LW", "RB", "RW", "SS", "RM", "LM", "RWB", "LWB")
   
+  comp_url <- paste0("https://www.transfermarkt.co.uk/", tm_team_name_url,"/spielplan/verein/", tm_team_id, "/plus/0?saison_id=",season)
+  session <- bow(comp_url)
+  x <- scrape(session) %>% 
+    html_nodes("div > a") %>% 
+    html_attr("href") 
+  team_comp_codes <- sub(".*2018/plus/1#", "", x[grepl("*2018/plus/*", x)])
+  league_code_1 <- word(sub(".*spieltag/wettbewerb/", "", x[grep("*spieltag/wettbewerb", x)]), 1, 1, "/")
+  league_code_2 <- word(sub(".*tabelle/wettbewerb/", "", x[grep("*tabelle/wettbewerb", x)]), 1, 1, "/")
+  league_code <- c(league_code_1, league_code_2)[1]
   ## Squad details for given season
   url <- paste0("https://www.transfermarkt.com/", tm_team_name_url, "/leistungsdaten/verein/", 
-                tm_team_id, "/reldata/", team_comps[1], "%26", season, "/plus/1/sort/im_kader.desc")
+                tm_team_id, "/reldata/", league_code, "%26", season, "/plus/1/sort/im_kader.desc")
   
   session <- bow(url)
   
@@ -25,21 +34,22 @@ get_appearances <- function(team_name, tm_team_id, season = 2018, team_comps = c
   
   
   ## add links
-  for(i in 1:length(team_comps)){
+  for(i in 1:length(team_comp_codes)){
+    code <- team_comp_codes[[i]]
     squad_table_df <- squad_table_df %>% 
-      mutate(!!paste0(team_comps[i],"_link") := glue::glue(
-        "https://www.transfermarkt.com/{player_name}/leistungsdatendetails/spieler/{id_num}/saison/{season}/verein/{tm_team_id}/liga/0/wettbewerb/{team_comps[i]}/pos/0/trainer_id/0/plus/1") 
-      )
+      mutate( !!paste0(code,"_link") := glue::glue(
+        sprintf("https://www.transfermarkt.com/{player_name}/leistungsdatendetails/spieler/{id_num}/saison/%s/verein/%s/liga/0/wettbewerb/%s/pos/0/trainer_id/0/plus/1", 
+                season, tm_team_id, code)))
   }
   
   glimpse(squad_table_df)
   
-  base_dates <- get_base_dates(team_comps = team_comps, squad_table_df = squad_table_df)
+  base_dates <- get_base_dates(team_comps = team_comp_codes, squad_table_df = squad_table_df)
   
   saveRDS(base_dates, file = here::here(sprintf("data/base_%s_%s_dates_df.RDS", team_name_file, season)))
   base_dates <- readRDS(file = here::here(sprintf("data/base_%s_%s_dates_df.RDS", team_name_file, season)))
   
-  appearances_df_raw <- get_team_appearances(team_comps = team_comps, squad_table_df = squad_table_df, base_dates = base_dates)
+  appearances_df_raw <- get_team_appearances(team_comps = team_comp_codes, squad_table_df = squad_table_df, base_dates = base_dates)
   saveRDS(appearances_df_raw, 
           file = glue(sprintf("{here::here()}/data/appearances_df_raw_%s_%s.RDS", team_name_file, season)))
   appearances_df_raw <- readRDS(

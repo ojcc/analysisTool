@@ -63,7 +63,7 @@ plot_depth_chart <- function(team_name, team_colour){
              label = sprintf("%s (%s)", grey_pos_rnk$name, grey_pos_rnk$minutes), colour = "white", alpha = 0.75, size = 2.5)
   p
   
-  ggsave(filename = here::here(sprintf("results/%s_lineup_%s.png", team_name_file, season)),
+  ggsave(filename = here::here(sprintf("results/%s_lineup_2018.png", team_name_file)),
          height = 9, width = 12)
   
   return(p)
